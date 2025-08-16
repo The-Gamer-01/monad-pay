@@ -36,7 +36,11 @@
     "wagmi": "^2.16.3"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "@openzeppelin/contracts": "^5.4.0",
+    "dotenv": "^17.2.1",
     "eslint": "^8",
-    "eslint-config-next": "15.4.6"
+    "eslint-config-next": "15.4.6",
+    "hardhat": "^2.26.3"
   }
 }

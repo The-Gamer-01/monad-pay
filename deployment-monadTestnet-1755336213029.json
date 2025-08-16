@@ -1,0 +1,18 @@
+{
+  "network": "monadTestnet",
+  "chainId": 10143,
+  "contractName": "MonadPay",
+  "contractAddress": "0x896ecD588cCe3b4F4D14E5c20620463b421EE2B6",
+  "deployerAddress": "0xF401F99D78BDDF2b8C22c078dBeFB2Fb758f6b46",
+  "transactionHash": "0x2452f1a51873bd11f9123845d245956d7ce1482c9f5d6b546895b4036380af70",
+  "blockNumber": 31090832,
+  "gasUsed": "8000000",
+  "gasPrice": "100000000000",
+  "deploymentCost": "0.8",
+  "timestamp": "2025-08-16T09:23:33.029Z",
+  "compiler": {
+    "version": "0.8.19",
+    "optimizer": true,
+    "runs": 200
+  }
+}

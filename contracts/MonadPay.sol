@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
@@ -11,6 +11,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @dev 支持批量支付、定期订阅和可编程支付的智能合约
  */
 contract MonadPay is ReentrancyGuard, Ownable {
+    
+
     
     struct Payment {
         address from;
@@ -428,7 +430,7 @@ contract MonadPay is ReentrancyGuard, Ownable {
         uint256 dailyVolume
     );
     
-    constructor(address _feeRecipient) {
+    constructor(address _feeRecipient) Ownable(msg.sender) {
         feeRecipient = _feeRecipient;
     }
     
@@ -692,7 +694,7 @@ contract MonadPay is ReentrancyGuard, Ownable {
             createdAt: block.timestamp
         });
         
-        emit EscrowCreated(escrowId, msg.sender, recipient, amount, deadline);
+        emit EscrowCreated(escrowId, msg.sender, recipient, arbiter, amount, token, deadline);
         return escrowId;
     }
     
@@ -772,7 +774,7 @@ contract MonadPay is ReentrancyGuard, Ownable {
         escrow.disputed = true;
         disputes[escrowId] = DisputeStatus.Raised;
         
-        emit DisputeRaised(escrowId, msg.sender, reason);
+        emit DisputeRaised(escrowId, msg.sender);
     }
     
     /**
@@ -818,7 +820,8 @@ contract MonadPay is ReentrancyGuard, Ownable {
             }
         }
         
-        emit DisputeResolved(escrowId, favorPayer, resolution);
+        DisputeStatus status = favorPayer ? DisputeStatus.ResolvedForPayer : DisputeStatus.ResolvedForRecipient;
+        emit DisputeResolved(escrowId, status, msg.sender);
     }
     
     /**
@@ -1662,8 +1665,8 @@ contract MonadPay is ReentrancyGuard, Ownable {
         */
        function _canRequestRefund(uint256 paymentId, PaymentType paymentType, address requester) internal view returns (bool) {
            if (paymentType == PaymentType.REGULAR) {
-               Payment storage payment = payments[paymentId];
-               return requester == payment.payer || requester == payment.recipient;
+               Payment storage payment = payments[bytes32(paymentId)];
+               return requester == payment.from || requester == payment.to;
            } else if (paymentType == PaymentType.ESCROW) {
                EscrowPayment storage escrow = escrowPayments[paymentId];
                return requester == escrow.payer || requester == escrow.recipient;
@@ -1700,8 +1703,8 @@ contract MonadPay is ReentrancyGuard, Ownable {
         */
        function _getRefundDetails(uint256 paymentId, PaymentType paymentType) internal view returns (address recipient, uint256 amount, address token) {
            if (paymentType == PaymentType.REGULAR) {
-               Payment storage payment = payments[paymentId];
-               return (payment.payer, payment.amount, payment.token);
+               Payment storage payment = payments[bytes32(paymentId)];
+               return (payment.from, payment.amount, payment.token);
            } else if (paymentType == PaymentType.ESCROW) {
                EscrowPayment storage escrow = escrowPayments[paymentId];
                return (escrow.payer, escrow.amount, escrow.token);
@@ -1721,8 +1724,8 @@ contract MonadPay is ReentrancyGuard, Ownable {
         */
        function _canManageAutoRefund(uint256 paymentId, PaymentType paymentType, address manager) internal view returns (bool) {
            if (paymentType == PaymentType.REGULAR) {
-               Payment storage payment = payments[paymentId];
-               return manager == payment.payer;
+               Payment storage payment = payments[bytes32(paymentId)];
+               return manager == payment.from;
            } else if (paymentType == PaymentType.CONDITIONAL) {
                ConditionalPayment storage conditional = conditionalPayments[paymentId];
                return manager == conditional.payer;
@@ -2109,7 +2112,7 @@ contract MonadPay is ReentrancyGuard, Ownable {
             payment.executed = true;
             
             // 更新分析数据
-            _updateAnalytics(payment.amount, fee, PaymentType.CUSTOM_CONTRACT, payment.payer, true);
+            _updateAnalytics(payment.payer, payment.amount, payment.token, PaymentType.CUSTOM_CONTRACT, true);
         }
         
         emit CustomContractPaymentExecuted(
