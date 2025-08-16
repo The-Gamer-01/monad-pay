@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 只在构建时启用静态导出
-  ...(process.env.NODE_ENV === 'production' && process.env.STATIC_EXPORT === 'true' ? {
+  // 只在静态导出时启用特殊配置
+  ...(process.env.STATIC_EXPORT === 'true' ? {
     output: 'export',
     trailingSlash: true,
     distDir: 'dist',
