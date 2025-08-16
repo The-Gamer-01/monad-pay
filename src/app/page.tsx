@@ -9,10 +9,11 @@ import EscrowPaymentManager from '../components/EscrowPaymentManager'
 import MultisigPaymentManager from '../components/MultisigPaymentManager'
 import PaymentAnalyticsDashboard from '../components/PaymentAnalyticsDashboard'
 import CustomContractPayment from '../components/CustomContractPayment'
+import AnalyticsDashboard from '../components/AnalyticsDashboard'
 
 export default function Home() {
-  const [generatedLink, setGeneratedLink] = useState<string>('')
-  const [activeView, setActiveView] = useState<'generator' | 'escrow' | 'multisig' | 'custom-contract' | 'analytics'>('generator')
+  const [generatedLink, setGeneratedLink] = useState('')
+  const [activeView, setActiveView] = useState<'generator' | 'escrow' | 'multisig' | 'contract' | 'analytics' | 'contract-analytics'>('generator')
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
@@ -75,13 +76,13 @@ export default function Home() {
               多签支付管理
             </button>
             <button
-              onClick={() => setActiveView('custom-contract')}
-              className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${activeView === 'custom-contract'
+              onClick={() => setActiveView('contract')}
+              className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${activeView === 'contract'
                 ? 'bg-blue-600 text-white shadow-lg'
                 : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              第三方合约支付
+              第三方合约
             </button>
             <button
               onClick={() => setActiveView('analytics')}
@@ -91,6 +92,15 @@ export default function Home() {
               }`}
             >
               数据分析
+            </button>
+            <button
+              onClick={() => setActiveView('contract-analytics')}
+              className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${activeView === 'contract-analytics'
+                ? 'bg-blue-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              合约分析
             </button>
           </div>
         </div>
@@ -125,9 +135,15 @@ export default function Home() {
         </div>
       )}
 
-      {activeView === 'custom-contract' && (
+      {activeView === 'contract' && (
         <div className="max-w-6xl mx-auto">
           <CustomContractPayment />
+        </div>
+      )}
+
+      {activeView === 'contract-analytics' && (
+        <div className="max-w-7xl mx-auto">
+          <AnalyticsDashboard />
         </div>
       )}
 

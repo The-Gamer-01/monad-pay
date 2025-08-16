@@ -20,6 +20,23 @@ import {
   calculateTransactionCost,
   type SimulationResult
 } from '../utils/callSimulation';
+import {
+  verifyContractWithCache,
+  type ContractVerificationResult,
+  type ContractInfo,
+  getContractInfo
+} from '../utils/contractVerification';
+import { contractAnalytics } from '../utils/analyticsExtension';
+import {
+  DEFI_TEMPLATES as IMPORTED_DEFI_TEMPLATES,
+  getTemplatesByCategory,
+  getTemplateById,
+  getTemplateAddress,
+  validateTemplateParams,
+  generateDefaultParams,
+  type DefiTemplate
+} from '../utils/defiTemplates';
+import { useAccount } from 'wagmi';
 
 interface CustomContractPaymentProps {
   onPaymentCreate?: (paymentData: any) => void;
@@ -69,22 +86,24 @@ interface ButtonProps {
 }
 
 const Button: React.FC<ButtonProps> = ({ children, onClick, className = '', disabled = false, variant = 'default', size = 'default' }) => {
-  const baseClasses = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
+  const baseClasses = 'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none';
+  
   const variantClasses = {
-    default: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
-    outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-blue-500'
+    default: 'bg-blue-600 text-white hover:bg-blue-700',
+    outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
   };
+  
   const sizeClasses = {
-    default: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base',
-    icon: 'p-2'
+    default: 'h-10 px-4 py-2',
+    lg: 'h-11 px-8',
+    icon: 'h-10 w-10'
   };
   
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
     >
       {children}
     </button>
@@ -152,20 +171,13 @@ interface SelectProps {
 
 const Select: React.FC<SelectProps> = ({ children, value, onValueChange, className = '' }) => {
   return (
-    <div className={`relative ${className}`}>
-      <select
-        value={value}
-        onChange={(e) => onValueChange?.(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-      >
-        {children}
-      </select>
-      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
-    </div>
+    <select
+      value={value}
+      onChange={(e) => onValueChange?.(e.target.value)}
+      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${className}`}
+    >
+      {children}
+    </select>
   );
 };
 
@@ -190,7 +202,7 @@ const Badge: React.FC<BadgeProps> = ({ children, variant = 'default', className 
   };
   
   return (
-    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${variantClasses[variant]} ${className}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variantClasses[variant]} ${className}`}>
       {children}
     </span>
   );
@@ -268,8 +280,7 @@ interface TabsContentProps {
 }
 
 const TabsContent: React.FC<TabsContentProps> = ({ value, children, className = '', activeTab }) => {
-  if (activeTab !== value) return null;
-  return <div className={`mt-4 ${className}`}>{children}</div>;
+  return activeTab === value ? <div className={className}>{children}</div> : null;
 };
 
 interface SwitchProps {
@@ -301,7 +312,7 @@ const Separator: React.FC<SeparatorProps> = ({ className = '' }) => (
   <hr className={`border-gray-200 ${className}`} />
 );
 
-// 图标组件
+// Icons
 const Code = () => (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -369,28 +380,8 @@ const Activity = () => (
   </svg>
 );
 
-const DEFI_TEMPLATES = {
-  uniswap: {
-    name: 'Uniswap V3 Swap',
-    address: '0xE592427A0AEce92De3Edee1F18E0157C05861564',
-    description: '通过 Uniswap V3 进行代币交换',
-    functions: ['exactInputSingle', 'exactOutputSingle']
-  },
-  aave: {
-    name: 'AAVE Lending Pool',
-    address: '0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9',
-    description: '在 AAVE 协议中存款或借款',
-    functions: ['deposit', 'withdraw', 'borrow', 'repay']
-  },
-  compound: {
-    name: 'Compound Finance',
-    address: '0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B',
-    description: '在 Compound 协议中进行借贷操作',
-    functions: ['mint', 'redeem', 'borrow', 'repayBorrow']
-  }
-};
-
 const CustomContractPayment: React.FC<CustomContractPaymentProps> = ({ onPaymentCreate }) => {
+  const { address } = useAccount();
   const [contractAddress, setContractAddress] = useState('');
   const [abi, setAbi] = useState('');
   const [parsedABI, setParsedABI] = useState<ABIFunction[]>([]);
@@ -399,7 +390,11 @@ const CustomContractPayment: React.FC<CustomContractPaymentProps> = ({ onPayment
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
   const [transactionPath, setTransactionPath] = useState<any>(null);
   const [gasPrice, setGasPrice] = useState<{ slow: bigint; standard: bigint; fast: bigint } | null>(null);
+  const [verificationResult, setVerificationResult] = useState<ContractVerificationResult | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<DefiTemplate | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState<ABIFunction | null>(null);
   const [functionParams, setFunctionParams] = useState<Record<string, any>>({});
   const [recipient, setRecipient] = useState('');
@@ -444,20 +439,72 @@ const CustomContractPayment: React.FC<CustomContractPaymentProps> = ({ onPayment
         return;
       }
       
-      // 这里应该调用实际的合约验证 API
-      // 模拟验证过程
-      setIsContractVerified(true);
-      setContractInfo({
-        name: 'Custom Contract',
-        verified: true,
-        compiler: 'v0.8.19',
-        optimization: true
-      });
+      setIsVerifying(true);
+      const [verification, info] = await Promise.all([
+        verifyContractWithCache(address as `0x${string}`, 1), // 假设使用以太坊主网
+        getContractInfo(address as `0x${string}`)
+      ]);
+      
+      setVerificationResult(verification);
+      setContractInfo(info);
+      setIsContractVerified(verification.isVerified);
       setErrors(prev => ({ ...prev, contract: '' }));
     } catch (error) {
+      console.error('Contract verification failed:', error);
+      setVerificationResult({
+        isVerified: false,
+        securityScore: 0,
+        riskLevel: 'high',
+        warnings: ['验证失败']
+      });
       setErrors(prev => ({ ...prev, contract: 'Contract verification failed' }));
       setIsContractVerified(false);
+    } finally {
+      setIsVerifying(false);
     }
+  };
+
+  // 应用模板
+  const applyTemplate = (template: DefiTemplate) => {
+    const network = 'mainnet'; // 默认使用主网
+    const address = getTemplateAddress(template, network);
+    
+    if (address) {
+      setContractAddress(address);
+      setAbi(JSON.stringify(template.abi, null, 2));
+      setSelectedTemplate(template);
+      setShowTemplates(false);
+      
+      // 解析 ABI
+      try {
+        const parsed = parseContractABI(template.abi);
+        setParsedABI(parsed.functions);
+        
+        // 如果只有一个函数，自动选择
+        if (parsed.functions.length === 1) {
+          setSelectedFunction(parsed.functions[0]);
+          const defaultParams = generateDefaultParams(template, parsed.functions[0].name, address);
+          setFunctionParams(defaultParams);
+        }
+      } catch (error) {
+        console.error('Failed to parse template ABI:', error);
+      }
+      
+      // 自动验证合约
+      verifyContract(address);
+    }
+  };
+
+  // 清除模板
+  const clearTemplate = () => {
+    setSelectedTemplate(null);
+    setContractAddress('');
+    setAbi('');
+    setParsedABI([]);
+    setSelectedFunction(null);
+    setFunctionParams({});
+    setVerificationResult(null);
+    setContractInfo(null);
   };
 
   // 执行安全检查
@@ -561,6 +608,21 @@ const CustomContractPayment: React.FC<CustomContractPaymentProps> = ({ onPayment
       return;
     }
 
+    // 记录交易开始
+    const transactionId = contractAnalytics.recordTransaction({
+      contractAddress,
+      functionName: selectedFunction.name,
+      protocol: selectedTemplate?.name,
+      category: selectedTemplate?.category,
+      value: (selectedFunction?.stateMutability === 'payable' && functionParams.value) ? functionParams.value : '0',
+      gasUsed: 0, // 将在交易完成后更新
+      gasPrice: '0', // 将在交易完成后更新
+      status: 'pending',
+      riskLevel: verificationResult?.riskLevel || 'medium',
+      securityScore: verificationResult?.securityScore || 50,
+      userAddress: address || ''
+    });
+
     try {
       const validation = validateFunctionParams(selectedFunction, functionParams);
       if (!validation.isValid) {
@@ -580,324 +642,543 @@ const CustomContractPayment: React.FC<CustomContractPaymentProps> = ({ onPayment
         requiresReturn,
         gasLimit: parseInt(gasLimit),
         deadline: Math.floor(new Date(deadline).getTime() / 1000),
-        description
+        description,
+        transactionId // 添加交易ID用于后续跟踪
       };
       
       onPaymentCreate?.(paymentData);
+      
+      // 更新交易记录为已创建
+      contractAnalytics.updateTransaction(transactionId, {
+        status: 'success'
+      });
     } catch (error) {
       console.error('Failed to create payment:', error);
       alert('Failed to create payment');
+      
+      // 更新交易记录为失败
+      contractAnalytics.updateTransaction(transactionId, {
+        status: 'failed',
+        errorMessage: error instanceof Error ? error.message : 'Failed to create payment'
+      });
     }
   };
 
   // 使用模板
   const useTemplate = (templateKey: string) => {
-    const template = DEFI_ABI_TEMPLATES[templateKey as keyof typeof DEFI_ABI_TEMPLATES];
+    const template = getTemplateById(templateKey);
     if (template) {
-      setAbi(template.abi);
-      parseABI(template.abi);
+      applyTemplate(template);
     }
   };
 
-  useEffect(() => {
-    if (abi) {
-      parseABI(abi);
+  // 处理合约地址变化
+  const handleContractAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newAddress = e.target.value;
+    setContractAddress(newAddress);
+    
+    // 如果地址有效，自动验证
+    if (newAddress && newAddress.length === 42 && newAddress.startsWith('0x')) {
+      verifyContract(newAddress);
     }
-  }, [abi]);
+  };
 
-  useEffect(() => {
-    if (contractAddress && contractAddress.length === 42 && contractAddress.startsWith('0x')) {
-      verifyContract(contractAddress);
+  // 处理ABI变化
+  const handleAbiChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newAbi = e.target.value;
+    setAbi(newAbi);
+    if (newAbi.trim()) {
+      parseABI(newAbi);
+    } else {
+      setParsedABI([]);
+      setAbiError('');
     }
-  }, [contractAddress]);
+  };
 
-  useEffect(() => {
-    if (selectedFunction && contractAddress) {
-      performSecurityCheck();
+  // 处理函数选择
+  const handleFunctionSelect = (functionName: string) => {
+    const func = parsedABI.find(f => f.name === functionName);
+    if (func) {
+      setSelectedFunction(func);
+      // 重置参数
+      const initialParams: Record<string, any> = {};
+      func.inputs.forEach(input => {
+        initialParams[input.name] = '';
+      });
+      setFunctionParams(initialParams);
     }
-  }, [selectedFunction, functionParams, contractAddress, amount]);
+  };
+
+  // 处理参数变化
+  const handleParamChange = (paramName: string, value: string) => {
+    setFunctionParams(prev => ({
+      ...prev,
+      [paramName]: value
+    }));
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-          第三方合约支付
-        </h1>
-        <p className="text-gray-600">
-          通过调用第三方智能合约来执行可编程支付
-        </p>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">第三方合约支付</h1>
+        <p className="text-gray-600">安全地与任何智能合约交互并创建支付</p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="contract" className="flex items-center gap-2">
-            <Code className="w-4 h-4" />
-            合约设置
-          </TabsTrigger>
-          <TabsTrigger value="function" className="flex items-center gap-2">
-            <Settings className="w-4 h-4" />
-            函数配置
-          </TabsTrigger>
-          <TabsTrigger value="payment" className="flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            支付设置
-          </TabsTrigger>
-          <TabsTrigger value="simulate" className="flex items-center gap-2">
-            <Shield className="w-4 h-4" />
-            模拟测试
-          </TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="contract">合约配置</TabsTrigger>
+          <TabsTrigger value="security">安全检查</TabsTrigger>
+          <TabsTrigger value="simulation">模拟执行</TabsTrigger>
+          <TabsTrigger value="payment">创建支付</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="contract" className="space-y-6" activeTab={activeTab}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                DeFi 协议模板
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {Object.entries(DEFI_ABI_TEMPLATES).map(([key, template]) => (
-                  <Card key={key} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => useTemplate(key)}>
-                    <CardContent className="p-4">
-                      <h3 className="font-semibold">{template.name}</h3>
-                      <Badge variant="outline" className="mt-2">
-                        ABI模板
-                      </Badge>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>合约信息</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="contract-address">合约地址 *</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="contract-address"
-                    placeholder="0x..."
-                    value={contractAddress}
-                    onChange={(e) => setContractAddress(e.target.value)}
-                    className={errors.contract ? 'border-red-500' : ''}
-                  />
-                  <Button variant="outline" size="icon">
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
-                </div>
-                {errors.contract && (
-                  <p className="text-sm text-red-500">{errors.contract}</p>
-                )}
-                {isContractVerified && contractInfo && (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <CheckCircle className="w-4 h-4" />
-                    <span className="text-sm">合约已验证</span>
+        <TabsContent value="contract">
+          <div className="space-y-6">
+            {/* DeFi 模板选择 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>DeFi 协议模板</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-600">选择常用的 DeFi 协议模板快速开始</p>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowTemplates(!showTemplates)}
+                    >
+                      {showTemplates ? '隐藏模板' : '显示模板'}
+                    </Button>
                   </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="abi">合约 ABI *</Label>
-                <div className="flex gap-2">
-                  <Textarea
-                    id="abi"
-                    placeholder="粘贴合约 ABI JSON..."
-                    value={abi}
-                    onChange={(e) => setAbi(e.target.value)}
-                    rows={6}
-                    className={errors.abi ? 'border-red-500' : ''}
-                  />
-                {abiError && (
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>{abiError}</AlertDescription>
-                  </Alert>
-                )}
-                  <Button variant="outline" size="icon">
-                    <Upload className="w-4 h-4" />
-                  </Button>
-                </div>
-                {abiError && (
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>{abiError}</AlertDescription>
-                  </Alert>
-                )}
-                {errors.abi && (
-                  <p className="text-sm text-red-500">{errors.abi}</p>
-                )}
-                {parsedABI.length > 0 && (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <CheckCircle className="w-4 h-4" />
-                    <span className="text-sm">找到 {parsedABI.length} 个可调用函数</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="function" className="space-y-6" activeTab={activeTab}>
-          <Card>
-            <CardHeader>
-              <CardTitle>选择函数</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {parsedABI.length > 0 ? (
-                <>
-                  <Select onValueChange={(value) => {
-                    const func = parsedABI.find(f => f.name === value);
-                    setSelectedFunction(func || null);
-                    setFunctionParams({});
-                  }}>
-                    <SelectValue placeholder="选择要调用的函数" />
-                    {parsedABI.map((func) => (
-                      <SelectItem key={func.name} value={func.name}>
-                        {func.name} ({func.stateMutability})
-                      </SelectItem>
-                    ))}
-                  </Select>
-
-                  {selectedFunction && (
-                    <div className="space-y-4">
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <h4 className="font-semibold mb-2">函数签名</h4>
-                        <code className="text-sm">
-                          {selectedFunction.name}(
-                          {selectedFunction.inputs.map(input => `${input.type} ${input.name}`).join(', ')}
-                          )
-                        </code>
-                      </div>
-
-                      {selectedFunction.inputs.length > 0 && (
-                        <div className="space-y-3">
-                          <h4 className="font-semibold">函数参数</h4>
-                          {selectedFunction.inputs.map((input) => (
-                            <div key={input.name} className="space-y-2">
-                              <Label htmlFor={input.name}>
-                                {input.name} ({input.type})
-                              </Label>
-                              <Input
-                                id={input.name}
-                                placeholder={`输入 ${input.type} 类型的值`}
-                                value={functionParams[input.name] || ''}
-                                onChange={(e) => setFunctionParams(prev => ({
-                                  ...prev,
-                                  [input.name]: e.target.value
-                                }))}
-                              />
+                  
+                  {showTemplates && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {IMPORTED_DEFI_TEMPLATES.map((template, index) => (
+                        <Card key={template.id}>
+                          <CardContent>
+                            <div className="p-4">
+                              <h3 className="font-semibold text-sm mb-2">{template.name}</h3>
+                              <p className="text-xs text-gray-600 mb-3">{template.description}</p>
+                              <div className="flex items-center justify-between">
+                                <Badge variant="secondary">{template.category}</Badge>
+                                <span className="text-xs text-gray-500">{template.functions.length} 函数</span>
+                              </div>
+                              <Button
+                                   size="default"
+                                   onClick={() => applyTemplate(template)}
+                                 >
+                                   使用
+                                 </Button>
                             </div>
-                          ))}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {selectedTemplate && (
+                    <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-blue-900">已选择: {selectedTemplate.name}</p>
+                        <p className="text-sm text-blue-700">{selectedTemplate.description}</p>
+                      </div>
+                      <Button variant="outline" onClick={clearTemplate}>
+                        清除
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 合约地址输入 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>合约地址</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="contract-address">合约地址</Label>
+                    <Input
+                      id="contract-address"
+                      placeholder="0x..."
+                      value={contractAddress}
+                      onChange={handleContractAddressChange}
+                    />
+                    {errors.contract && (
+                      <p className="text-sm text-red-600 mt-1">{errors.contract}</p>
+                    )}
+                  </div>
+                  
+                  {/* 合约验证结果 */}
+                  {verificationResult && (
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        {verificationResult.isVerified ? (
+                          <CheckCircle />
+                        ) : (
+                          <AlertTriangle />
+                        )}
+                        <span className={`font-medium ${
+                          verificationResult.isVerified ? 'text-green-700' : 'text-yellow-700'
+                        }`}>
+                          {verificationResult.isVerified ? '合约已验证' : '合约未验证'}
+                        </span>
+                        <Badge variant={verificationResult.riskLevel === 'low' ? 'default' : 
+                                     verificationResult.riskLevel === 'medium' ? 'secondary' : 'outline'}>
+                          {verificationResult.riskLevel === 'low' ? '低风险' :
+                           verificationResult.riskLevel === 'medium' ? '中风险' : '高风险'}
+                        </Badge>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-600">安全评分:</span>
+                          <span className="ml-2 font-medium">{verificationResult.securityScore}/100</span>
                         </div>
+                        {contractInfo && (
+                          <div>
+                            <span className="text-gray-600">合约名称:</span>
+                            <span className="ml-2 font-medium">{contractInfo.name || '未知'}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {verificationResult.warnings && verificationResult.warnings.length > 0 && (
+                        <Alert>
+                          <AlertDescription>
+                            <div className="space-y-1">
+                              {verificationResult.warnings.map((warning, index) => (
+                                <div key={index} className="text-sm">{warning}</div>
+                              ))}
+                            </div>
+                          </AlertDescription>
+                        </Alert>
                       )}
                     </div>
                   )}
-                </>
-              ) : (
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    请先在合约设置中输入有效的 ABI
-                  </AlertDescription>
-                </Alert>
-              )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* ABI 输入 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>合约 ABI</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="abi">ABI JSON</Label>
+                    <Textarea
+                      id="abi"
+                      placeholder="粘贴合约 ABI JSON..."
+                      value={abi}
+                      onChange={handleAbiChange}
+                      rows={8}
+                    />
+                    {abiError && (
+                      <p className="text-sm text-red-600 mt-1">{abiError}</p>
+                    )}
+                  </div>
+                  
+                  {/* 解析的函数列表 */}
+                  {parsedABI.length > 0 && (
+                    <div>
+                      <Label>可调用函数</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                        {parsedABI.map((func, index) => (
+                          <Card
+                            key={index}
+                            onClick={() => handleFunctionSelect(func.name)}
+                          >
+                            <CardContent>
+                              <div className="p-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium text-sm">{func.name}</span>
+                                  <div className="flex space-x-1">
+                                    {func.stateMutability === 'payable' && <Badge variant="outline">Payable</Badge>}
+                                    {func.stateMutability === 'view' && <Badge variant="secondary">View</Badge>}
+                                  </div>
+                                </div>
+                                <p className="text-xs text-gray-600 mt-1">
+                                  {func.inputs.length} 参数, {func.outputs.length} 返回值
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 函数参数配置 */}
+            {selectedFunction && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>函数参数: {selectedFunction.name}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {selectedFunction.inputs.map((input, index) => (
+                      <div key={index}>
+                        <Label htmlFor={`param-${input.name}`}>
+                          {input.name} ({input.type})
+                        </Label>
+                        <Input
+                          id={`param-${input.name}`}
+                          placeholder={`输入 ${input.type} 类型的值`}
+                          value={functionParams[input.name] || ''}
+                          onChange={(e) => handleParamChange(input.name, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                    
+                    {selectedFunction.stateMutability === 'payable' && (
+                       <div>
+                         <Label htmlFor="function-value">发送 ETH 数量 (wei)</Label>
+                         <Input
+                           id="function-value"
+                           placeholder="0"
+                           value={functionParams.value || ''}
+                           onChange={(e) => handleParamChange('value', e.target.value)}
+                         />
+                       </div>
+                     )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="security">
+          <Card>
+            <CardHeader>
+              <CardTitle>安全检查</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Button onClick={performSecurityCheck} disabled={!selectedFunction}>
+                  <Shield />
+                  执行安全检查
+                </Button>
+                
+                {securityCheck && (
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      {securityCheck.isSecure ? (
+                        <CheckCircle />
+                      ) : (
+                        <AlertTriangle />
+                      )}
+                      <span className={`font-medium ${
+                        securityCheck.isSecure ? 'text-green-700' : 'text-red-700'
+                      }`}>
+                        {securityCheck.isSecure ? '安全检查通过' : '发现安全风险'}
+                      </span>
+                      <Badge variant={securityCheck.riskLevel === 'low' ? 'default' : 
+                                   securityCheck.riskLevel === 'medium' ? 'secondary' : 'outline'}>
+                        {securityCheck.riskLevel === 'low' ? '低风险' :
+                         securityCheck.riskLevel === 'medium' ? '中风险' : '高风险'}
+                      </Badge>
+                    </div>
+                    
+                    {securityCheck.warnings.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-yellow-800 mb-2">警告:</h4>
+                        <ul className="list-disc list-inside space-y-1">
+                          {securityCheck.warnings.map((warning, index) => (
+                            <li key={index} className="text-sm text-yellow-700">{warning}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {securityCheck.errors.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-red-800 mb-2">错误:</h4>
+                        <ul className="list-disc list-inside space-y-1">
+                          {securityCheck.errors.map((error, index) => (
+                            <li key={index} className="text-sm text-red-700">{error}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="payment" className="space-y-6" activeTab={activeTab}>
+        <TabsContent value="simulation">
           <Card>
             <CardHeader>
-              <CardTitle>支付配置</CardTitle>
+              <CardTitle>模拟执行</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="recipient">接收方地址 *</Label>
-                  <Input
-                    id="recipient"
-                    placeholder="0x..."
-                    value={recipient}
-                    onChange={(e) => setRecipient(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="amount">支付金额 *</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    placeholder="0.0"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="token">支付代币</Label>
-                  <Select value={token} onValueChange={setToken}>
-                    <SelectItem value="ETH">ETH</SelectItem>
-                    <SelectItem value="USDC">USDC</SelectItem>
-                    <SelectItem value="USDT">USDT</SelectItem>
-                    <SelectItem value="DAI">DAI</SelectItem>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="gas-limit">Gas 限制</Label>
-                  <Input
-                    id="gas-limit"
-                    type="number"
-                    value={gasLimit}
-                    onChange={(e) => setGasLimit(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="deadline">截止时间</Label>
-                <Input
-                  id="deadline"
-                  type="datetime-local"
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">描述</Label>
-                <Textarea
-                  id="description"
-                  placeholder="描述这笔支付的用途..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                />
-              </div>
-
-              <Separator />
-
+            <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label>验证返回值</Label>
-                    <p className="text-sm text-gray-600">是否需要验证合约调用的返回值</p>
+                <Button onClick={simulateCall} disabled={!selectedFunction || isSimulating}>
+                  <Play />
+                  {isSimulating ? '模拟中...' : '模拟执行'}
+                </Button>
+                
+                {simulationResult && (
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      {simulationResult.success ? (
+                        <CheckCircle />
+                      ) : (
+                        <AlertTriangle />
+                      )}
+                      <span className={`font-medium ${
+                        simulationResult.success ? 'text-green-700' : 'text-red-700'
+                      }`}>
+                        {simulationResult.success ? '模拟成功' : '模拟失败'}
+                      </span>
+                    </div>
+                    
+                    {simulationResult.error && (
+                      <Alert>
+                        <AlertDescription>
+                          <p className="text-sm text-red-700">{simulationResult.error}</p>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    
+                    {simulationResult.gasEstimate && (
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-600">预估 Gas:</span>
+                          <span className="ml-2 font-medium">{simulationResult.gasEstimate.toString()}</span>
+                        </div>
+                        {gasPrice && (
+                          <div>
+                            <span className="text-gray-600">Gas 价格 (Gwei):</span>
+                            <span className="ml-2 font-medium">
+                              {(Number(gasPrice.standard) / 1e9).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {simulationResult.returnValue && (
+                       <div>
+                         <h4 className="font-medium mb-2">返回数据:</h4>
+                         <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">
+                           {typeof simulationResult.returnValue === 'object' 
+                             ? JSON.stringify(simulationResult.returnValue, null, 2)
+                             : simulationResult.returnValue.toString()}
+                         </pre>
+                       </div>
+                     )}
                   </div>
+                )}
+                
+                {transactionPath && (
+                  <div>
+                    <h4 className="font-medium mb-2">交易路径分析:</h4>
+                    <div className="bg-gray-50 p-4 rounded">
+                      <pre className="text-xs">{JSON.stringify(transactionPath, null, 2)}</pre>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payment">
+          <Card>
+            <CardHeader>
+              <CardTitle>创建支付</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="recipient">接收者地址</Label>
+                    <Input
+                      id="recipient"
+                      placeholder="0x..."
+                      value={recipient}
+                      onChange={(e) => setRecipient(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="amount">金额</Label>
+                    <Input
+                      id="amount"
+                      placeholder="0.0"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="token">代币</Label>
+                    <Select value={token} onValueChange={setToken}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="选择代币" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ETH">ETH</SelectItem>
+                        <SelectItem value="USDC">USDC</SelectItem>
+                        <SelectItem value="USDT">USDT</SelectItem>
+                        <SelectItem value="DAI">DAI</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="gas-limit">Gas 限制</Label>
+                    <Input
+                      id="gas-limit"
+                      placeholder="300000"
+                      value={gasLimit}
+                      onChange={(e) => setGasLimit(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="deadline">截止时间</Label>
+                    <Input
+                      id="deadline"
+                      type="datetime-local"
+                      value={deadline}
+                      onChange={(e) => setDeadline(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="description">描述</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="支付描述..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+                
+                <div className="flex items-center space-x-2">
                   <Switch
                     checked={requiresReturn}
                     onCheckedChange={setRequiresReturn}
                   />
+                  <Label>需要返回值</Label>
                 </div>
-
+                
                 {requiresReturn && (
-                  <div className="space-y-2">
-                    <Label htmlFor="expected-return">期望返回值 (hex)</Label>
+                  <div>
+                    <Label htmlFor="expected-return">期望返回值</Label>
                     <Input
                       id="expected-return"
                       placeholder="0x..."
@@ -906,222 +1187,18 @@ const CustomContractPayment: React.FC<CustomContractPaymentProps> = ({ onPayment
                     />
                   </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="simulate" className="space-y-6" activeTab={activeTab}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                调用模拟
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button onClick={simulateCall} disabled={!selectedFunction || !contractAddress || isSimulating}>
-                {isSimulating ? '模拟中...' : '模拟合约调用'}
-              </Button>
-
-              {securityCheck && (
-                <div className={`p-4 rounded-lg ${
-                  securityCheck.riskLevel === 'low' ? 'bg-green-50 border border-green-200' : 
-                  securityCheck.riskLevel === 'critical' ? 'bg-red-50 border border-red-200' :
-                  'bg-yellow-50 border border-yellow-200'
-                }`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    {securityCheck.riskLevel === 'low' ? (
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    ) : securityCheck.riskLevel === 'critical' ? (
-                      <AlertTriangle className="w-5 h-5 text-red-600" />
-                    ) : (
-                      <AlertTriangle className="w-5 h-5 text-yellow-600" />
-                    )}
-                    <span className="font-semibold">安全检查结果</span>
-                    <Badge 
-                      variant={securityCheck.riskLevel === 'low' ? 'default' : 'outline'}
-                      className={securityCheck.riskLevel === 'critical' ? 'bg-red-100 text-red-800' : 
-                                securityCheck.riskLevel === 'high' ? 'bg-yellow-100 text-yellow-800' : ''}
-                    >
-                      {securityCheck.riskLevel.toUpperCase()}
-                    </Badge>
-                  </div>
-                  {securityCheck.errors.length > 0 && (
-                    <div className="mb-2">
-                      <p className="font-medium text-red-600 text-sm">错误:</p>
-                      <ul className="list-disc list-inside text-sm text-red-700">
-                        {securityCheck.errors.map((error, index) => (
-                          <li key={index}>{error}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {securityCheck.warnings.length > 0 && (
-                    <div>
-                      <p className="font-medium text-yellow-600 text-sm">警告:</p>
-                      <ul className="list-disc list-inside text-sm text-yellow-700">
-                        {securityCheck.warnings.map((warning, index) => (
-                          <li key={index}>{warning}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {simulationResult && (
-                <div className="space-y-4">
-                  <div className={`p-4 rounded-lg ${
-                    simulationResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-                  }`}>
-                    <div className="flex items-center gap-2 mb-3">
-                      {simulationResult.success ? (
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                      ) : (
-                        <AlertTriangle className="w-5 h-5 text-red-600" />
-                      )}
-                      <span className={`font-semibold ${
-                        simulationResult.success ? 'text-green-800' : 'text-red-800'
-                      }`}>
-                        {simulationResult.success ? '模拟成功' : '模拟失败'}
-                      </span>
-                    </div>
-                    
-                    {simulationResult.success ? (
-                      <div className="space-y-3 text-sm">
-                        {simulationResult.gasEstimate && (
-                          <div className="flex justify-between">
-                            <span>预估Gas:</span>
-                            <span className="font-mono">{simulationResult.gasEstimate.toString()}</span>
-                          </div>
-                        )}
-                        {gasPrice && simulationResult.gasEstimate && (
-                          <div className="space-y-1">
-                            <div className="font-medium">交易成本估算:</div>
-                            {Object.entries(gasPrice).map(([speed, price]) => {
-                              const cost = calculateTransactionCost(simulationResult.gasEstimate!, price);
-                              return (
-                                <div key={speed} className="flex justify-between text-xs">
-                                  <span className="capitalize">{speed}:</span>
-                                  <span className="font-mono">{cost.costInEth} ETH</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {simulationResult.returnValue && (
-                          <div className="flex justify-between">
-                            <span>返回值:</span>
-                            <span className="font-mono text-xs break-all">
-                              {typeof simulationResult.returnValue === 'object' 
-                                ? JSON.stringify(simulationResult.returnValue)
-                                : simulationResult.returnValue.toString()}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-sm text-red-700">
-                        错误: {simulationResult.error}
-                        {simulationResult.revertReason && (
-                          <div className="mt-1">
-                            <span className="font-medium">回滚原因: </span>
-                            {simulationResult.revertReason}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {transactionPath && (
-                <div className="space-y-4">
-                  <h4 className="font-semibold flex items-center gap-2">
-                    <Settings className="w-4 h-4" />
-                    交易路径分析
-                  </h4>
-                  <div className="space-y-2">
-                    {transactionPath.steps.map((step: any, index: number) => (
-                      <div key={index} className="flex items-start gap-3 p-3 rounded-lg border">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          step.status === 'success' ? 'bg-green-100 text-green-700' :
-                          step.status === 'warning' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">{step.step}</div>
-                          <div className={`text-xs mt-1 ${
-                            step.status === 'success' ? 'text-green-600' :
-                            step.status === 'warning' ? 'text-yellow-600' :
-                            'text-red-600'
-                          }`}>
-                            {step.message}
-                          </div>
-                          {step.gasUsed && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              Gas: {step.gasUsed.toString()}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {transactionPath.totalGasEstimate && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <div className="text-sm font-medium text-blue-700">
-                        总Gas估算: {transactionPath.totalGasEstimate.toString()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h4 className="font-semibold">安全检查</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    {isContractVerified ? (
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                    )}
-                    <span className="text-sm">合约验证状态</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span className="text-sm">Gas 限制检查</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                    <span className="text-sm">合约白名单 (需要管理员添加)</span>
-                  </div>
+                
+                <Separator />
+                
+                <div className="flex justify-end space-x-4">
+                  <Button variant="outline" onClick={() => setActiveTab('simulation')}>
+                    返回模拟
+                  </Button>
+                  <Button onClick={createPayment}>
+                    创建支付
+                  </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <Button 
-                onClick={createPayment} 
-                className="w-full" 
-                size="lg"
-                disabled={
-                  !selectedFunction || 
-                  !contractAddress || 
-                  !recipient || 
-                  !amount ||
-                  (securityCheck && !securityCheck.isSecure)
-                }
-              >
-                创建第三方合约支付
-              </Button>
             </CardContent>
           </Card>
         </TabsContent>
