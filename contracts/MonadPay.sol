@@ -32,12 +32,37 @@ contract MonadPay is ReentrancyGuard, Ownable {
         bool active;
     }
     
+    struct EscrowPayment {
+        address payer;
+        address recipient;
+        address arbiter;
+        uint256 amount;
+        address token;
+        uint256 deadline;
+        bool completed;
+        bool disputed;
+        bool released;
+        string description;
+        uint256 createdAt;
+    }
+    
+    enum DisputeStatus {
+        None,
+        Raised,
+        ResolvedForPayer,
+        ResolvedForRecipient
+    }
+    
     mapping(bytes32 => Payment) public payments;
     mapping(bytes32 => bool) public processedLinks;
     mapping(uint256 => Subscription) public subscriptions;
+    mapping(uint256 => EscrowPayment) public escrowPayments;
+    mapping(uint256 => DisputeStatus) public disputes;
     
     uint256 public nextSubscriptionId = 1;
+    uint256 public nextEscrowId = 1;
     uint256 public platformFee = 25; // 0.25% in basis points
+    uint256 public escrowFee = 50; // 0.5% for escrow services
     address public feeRecipient;
     
     event PaymentProcessed(
@@ -67,6 +92,39 @@ contract MonadPay is ReentrancyGuard, Ownable {
         uint256 indexed subscriptionId,
         uint256 amount,
         uint256 timestamp
+    );
+    
+    event EscrowCreated(
+        uint256 indexed escrowId,
+        address indexed payer,
+        address indexed recipient,
+        address arbiter,
+        uint256 amount,
+        address token,
+        uint256 deadline
+    );
+    
+    event EscrowReleased(
+        uint256 indexed escrowId,
+        address indexed recipient,
+        uint256 amount
+    );
+    
+    event EscrowRefunded(
+        uint256 indexed escrowId,
+        address indexed payer,
+        uint256 amount
+    );
+    
+    event DisputeRaised(
+        uint256 indexed escrowId,
+        address indexed raiser
+    );
+    
+    event DisputeResolved(
+        uint256 indexed escrowId,
+        DisputeStatus resolution,
+        address indexed resolver
     );
     
     constructor(address _feeRecipient) {
