@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAccount, useSendTransaction } from 'wagmi'
 import { parseEther } from 'viem'
-import WalletConnect from '@/components/WalletConnect'
+import WalletConnect from '../../components/WalletConnect'
+import NetworkSwitcher from '../../components/NetworkSwitcher'
+import WalletBalance from '../../components/WalletBalance'
 
 interface PaymentData {
   to: string
@@ -15,7 +17,7 @@ interface PaymentData {
   expires?: string
 }
 
-export default function PayPage() {
+function PayPageContent() {
   const searchParams = useSearchParams()
   const { address, isConnected } = useAccount()
   const { sendTransaction, isPending, isSuccess, error } = useSendTransaction()
@@ -139,10 +141,15 @@ export default function PayPage() {
           ) : (
             <div className="space-y-4">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <p className="text-green-800 text-center">
-                  钱包已连接: {address?.slice(0, 6)}...{address?.slice(-4)}
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-green-800">
+                    钱包已连接: {address?.slice(0, 6)}...{address?.slice(-4)}
+                  </p>
+                  <NetworkSwitcher />
+                </div>
               </div>
+              
+              <WalletBalance />
               
               {isSuccess ? (
                 <div className="bg-green-100 border border-green-300 rounded-lg p-4 text-center">
@@ -173,5 +180,20 @@ export default function PayPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PayPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">加载中...</p>
+        </div>
+      </div>
+    }>
+      <PayPageContent />
+    </Suspense>
   )
 }

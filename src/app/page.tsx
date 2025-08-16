@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import LinkGenerator from '@/components/LinkGenerator'
-import QRCodeDisplay from '@/components/QRCodeDisplay'
+import LinkGenerator from '../components/LinkGenerator'
+import QRCodeDisplay from '../components/QRCodeDisplay'
+import WalletConnect from '../components/WalletConnect'
+import NetworkSwitcher from '../components/NetworkSwitcher'
 
 export default function Home() {
   const [generatedLink, setGeneratedLink] = useState<string>('')
@@ -18,7 +20,7 @@ export default function Home() {
           基于 Deeplinks 的规范，用于在 URL 中编码 Monad 交易请求。
           发送、请求和触发加密支付的最简单方法--只需一个链接。
         </p>
-        <div className="flex flex-wrap justify-center gap-4">
+        <div className="flex flex-wrap justify-center gap-4 mb-8">
           <div className="bg-white px-4 py-2 rounded-lg shadow-sm border">
             <span className="text-sm text-gray-500">支持</span>
             <div className="font-semibold text-gray-900">MetaMask • Rabby • Rainbow</div>
@@ -27,6 +29,12 @@ export default function Home() {
             <span className="text-sm text-gray-500">协议</span>
             <div className="font-semibold text-gray-900">WalletConnect • Monad</div>
           </div>
+        </div>
+        
+        {/* 钱包连接 */}
+        <div className="flex justify-center items-center gap-4">
+          <WalletConnect />
+          <NetworkSwitcher />
         </div>
       </div>
 
