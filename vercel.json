@@ -1,7 +1,6 @@
 {
-  "buildCommand": "npm install && STATIC_EXPORT=true npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
   "devCommand": "npm run dev",
-  "framework": "nextjs"
+  "installCommand": "npm install"
 }
