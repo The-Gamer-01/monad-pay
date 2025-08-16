@@ -138,6 +138,31 @@ contract MonadPay is ReentrancyGuard, Ownable {
     mapping(uint256 => NFTPayment) public nftPayments;
     uint256 public nextNFTId = 1;
     
+    // 第三方合约支付相关
+    struct CustomContractPayment {
+        address payer;
+        address recipient;
+        uint256 amount;
+        address token; // address(0) for ETH
+        address targetContract; // 第三方合约地址
+        bytes callData; // 调用数据
+        bytes expectedReturn; // 期望返回值（用于条件验证）
+        bool requiresReturn; // 是否需要验证返回值
+        uint256 gasLimit; // Gas 限制
+        bool executed;
+        bool cancelled;
+        string description;
+        uint256 createdAt;
+        uint256 deadline;
+    }
+    
+    mapping(uint256 => CustomContractPayment) public customContractPayments;
+    uint256 public nextCustomContractId = 1;
+    
+    // 合约白名单
+    mapping(address => bool) public whitelistedContracts;
+    uint256 public maxGasLimit = 500000; // 最大 Gas 限制
+    
     // 退款相关
     struct RefundRequest {
         uint256 paymentId;
@@ -157,7 +182,8 @@ contract MonadPay is ReentrancyGuard, Ownable {
         MULTISIG,
         CONDITIONAL,
         SPLIT,
-        NFT
+        NFT,
+        CUSTOM_CONTRACT
     }
     
     mapping(uint256 => RefundRequest) public refundRequests;
@@ -333,6 +359,34 @@ contract MonadPay is ReentrancyGuard, Ownable {
     event NFTPaymentCancelled(
         uint256 indexed nftPaymentId,
         address indexed canceller
+    );
+    
+    event CustomContractPaymentCreated(
+        uint256 indexed customContractId,
+        address indexed payer,
+        address indexed recipient,
+        address targetContract,
+        uint256 amount,
+        address token
+    );
+    
+    event CustomContractPaymentExecuted(
+        uint256 indexed customContractId,
+        address indexed payer,
+        address indexed recipient,
+        address targetContract,
+        uint256 amount,
+        bool success
+    );
+    
+    event CustomContractPaymentCancelled(
+        uint256 indexed customContractId,
+        address indexed canceller
+    );
+    
+    event ContractWhitelisted(
+        address indexed contractAddress,
+        bool whitelisted
     );
     
     event RefundRequested(
@@ -1951,6 +2005,245 @@ contract MonadPay is ReentrancyGuard, Ownable {
             if (userStats.successfulPayments == 0) return 0;
             return userStats.totalVolume / userStats.successfulPayments;
         }
+
+    // ==================== 第三方合约支付功能 ====================
+    
+    /**
+     * @dev 创建第三方合约支付
+     */
+    function createCustomContractPayment(
+        address recipient,
+        uint256 amount,
+        address token,
+        address targetContract,
+        bytes calldata callData,
+        bytes calldata expectedReturn,
+        bool requiresReturn,
+        uint256 gasLimit,
+        uint256 deadline,
+        string memory description
+    ) external payable nonReentrant returns (uint256) {
+        require(recipient != address(0), "Invalid recipient");
+        require(targetContract != address(0), "Invalid target contract");
+        require(whitelistedContracts[targetContract], "Contract not whitelisted");
+        require(gasLimit <= maxGasLimit, "Gas limit too high");
+        require(deadline > block.timestamp, "Invalid deadline");
+        require(amount > 0, "Amount must be greater than 0");
+        
+        uint256 fee = (amount * platformFee) / 10000;
+        uint256 totalWithFee = amount + fee;
+        
+        if (token == address(0)) {
+            require(msg.value >= totalWithFee, "Insufficient ETH sent");
+        } else {
+            IERC20(token).transferFrom(msg.sender, address(this), totalWithFee);
+        }
+        
+        uint256 customContractId = nextCustomContractId++;
+        
+        CustomContractPayment storage payment = customContractPayments[customContractId];
+        payment.payer = msg.sender;
+        payment.recipient = recipient;
+        payment.amount = amount;
+        payment.token = token;
+        payment.targetContract = targetContract;
+        payment.callData = callData;
+        payment.expectedReturn = expectedReturn;
+        payment.requiresReturn = requiresReturn;
+        payment.gasLimit = gasLimit;
+        payment.executed = false;
+        payment.cancelled = false;
+        payment.description = description;
+        payment.createdAt = block.timestamp;
+        payment.deadline = deadline;
+        
+        emit CustomContractPaymentCreated(
+            customContractId,
+            msg.sender,
+            recipient,
+            targetContract,
+            amount,
+            token
+        );
+        
+        return customContractId;
+    }
+    
+    /**
+     * @dev 执行第三方合约支付
+     */
+    function executeCustomContractPayment(uint256 customContractId) external nonReentrant {
+        CustomContractPayment storage payment = customContractPayments[customContractId];
+        
+        require(!payment.executed, "Payment already executed");
+        require(!payment.cancelled, "Payment cancelled");
+        require(block.timestamp <= payment.deadline, "Payment expired");
+        
+        // 执行第三方合约调用
+        bool success;
+        bytes memory returnData;
+        
+        (success, returnData) = payment.targetContract.call{gas: payment.gasLimit}(payment.callData);
+        
+        // 验证返回值（如果需要）
+        if (payment.requiresReturn && success) {
+            require(keccak256(returnData) == keccak256(payment.expectedReturn), "Return value mismatch");
+        }
+        
+        if (success) {
+            // 执行支付
+            uint256 fee = (payment.amount * platformFee) / 10000;
+            
+            if (payment.token == address(0)) {
+                payable(payment.recipient).transfer(payment.amount);
+                if (fee > 0) {
+                    payable(feeRecipient).transfer(fee);
+                }
+            } else {
+                IERC20(payment.token).transfer(payment.recipient, payment.amount);
+                if (fee > 0) {
+                    IERC20(payment.token).transfer(feeRecipient, fee);
+                }
+            }
+            
+            payment.executed = true;
+            
+            // 更新分析数据
+            _updateAnalytics(payment.amount, fee, PaymentType.CUSTOM_CONTRACT, payment.payer, true);
+        }
+        
+        emit CustomContractPaymentExecuted(
+            customContractId,
+            payment.payer,
+            payment.recipient,
+            payment.targetContract,
+            payment.amount,
+            success
+        );
+        
+        if (!success) {
+            // 如果调用失败，退款给付款人
+            _refundCustomContractPayment(customContractId);
+        }
+    }
+    
+    /**
+     * @dev 取消第三方合约支付
+     */
+    function cancelCustomContractPayment(uint256 customContractId) external nonReentrant {
+        CustomContractPayment storage payment = customContractPayments[customContractId];
+        
+        require(!payment.executed, "Payment already executed");
+        require(!payment.cancelled, "Payment already cancelled");
+        require(
+            msg.sender == payment.payer || 
+            msg.sender == owner() || 
+            block.timestamp > payment.deadline,
+            "Not authorized to cancel"
+        );
+        
+        payment.cancelled = true;
+        
+        // 退款
+        _refundCustomContractPayment(customContractId);
+        
+        emit CustomContractPaymentCancelled(customContractId, msg.sender);
+    }
+    
+    /**
+     * @dev 内部退款函数
+     */
+    function _refundCustomContractPayment(uint256 customContractId) internal {
+        CustomContractPayment storage payment = customContractPayments[customContractId];
+        
+        uint256 fee = (payment.amount * platformFee) / 10000;
+        uint256 totalAmount = payment.amount + fee;
+        
+        if (payment.token == address(0)) {
+            payable(payment.payer).transfer(totalAmount);
+        } else {
+            IERC20(payment.token).transfer(payment.payer, totalAmount);
+        }
+    }
+    
+    /**
+     * @dev 添加合约到白名单
+     */
+    function whitelistContract(address contractAddress, bool whitelisted) external onlyOwner {
+        require(contractAddress != address(0), "Invalid contract address");
+        whitelistedContracts[contractAddress] = whitelisted;
+        emit ContractWhitelisted(contractAddress, whitelisted);
+    }
+    
+    /**
+     * @dev 设置最大 Gas 限制
+     */
+    function setMaxGasLimit(uint256 _maxGasLimit) external onlyOwner {
+        require(_maxGasLimit > 0, "Invalid gas limit");
+        maxGasLimit = _maxGasLimit;
+    }
+    
+    /**
+     * @dev 检查合约是否在白名单中
+     */
+    function isContractWhitelisted(address contractAddress) external view returns (bool) {
+        return whitelistedContracts[contractAddress];
+    }
+    
+    /**
+     * @dev 获取第三方合约支付信息
+     */
+    function getCustomContractPayment(uint256 customContractId) external view returns (
+        address payer,
+        address recipient,
+        uint256 amount,
+        address token,
+        address targetContract,
+        bytes memory callData,
+        bytes memory expectedReturn,
+        bool requiresReturn,
+        uint256 gasLimit,
+        bool executed,
+        bool cancelled,
+        string memory description,
+        uint256 createdAt,
+        uint256 deadline
+    ) {
+        CustomContractPayment storage payment = customContractPayments[customContractId];
+        return (
+            payment.payer,
+            payment.recipient,
+            payment.amount,
+            payment.token,
+            payment.targetContract,
+            payment.callData,
+            payment.expectedReturn,
+            payment.requiresReturn,
+            payment.gasLimit,
+            payment.executed,
+            payment.cancelled,
+            payment.description,
+            payment.createdAt,
+            payment.deadline
+        );
+    }
+    
+    /**
+     * @dev 检查第三方合约支付是否可以执行
+     */
+    function canExecuteCustomContractPayment(uint256 customContractId) external view returns (bool) {
+        CustomContractPayment storage payment = customContractPayments[customContractId];
+        
+        if (payment.executed || payment.cancelled) {
+            return false;
+        }
+        
+        if (block.timestamp > payment.deadline) {
+            return false;
+        }
+        
+        return true;
+    }
 
     // 接收原生代币
     receive() external payable {}

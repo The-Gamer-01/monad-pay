@@ -8,10 +8,11 @@ import NetworkSwitcher from '../components/NetworkSwitcher'
 import EscrowPaymentManager from '../components/EscrowPaymentManager'
 import MultisigPaymentManager from '../components/MultisigPaymentManager'
 import PaymentAnalyticsDashboard from '../components/PaymentAnalyticsDashboard'
+import CustomContractPayment from '../components/CustomContractPayment'
 
 export default function Home() {
   const [generatedLink, setGeneratedLink] = useState<string>('')
-  const [activeView, setActiveView] = useState<'generator' | 'escrow' | 'multisig' | 'analytics'>('generator')
+  const [activeView, setActiveView] = useState<'generator' | 'escrow' | 'multisig' | 'custom-contract' | 'analytics'>('generator')
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
@@ -74,6 +75,15 @@ export default function Home() {
               多签支付管理
             </button>
             <button
+              onClick={() => setActiveView('custom-contract')}
+              className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${activeView === 'custom-contract'
+                ? 'bg-blue-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              第三方合约支付
+            </button>
+            <button
               onClick={() => setActiveView('analytics')}
               className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${activeView === 'analytics'
                 ? 'bg-blue-600 text-white shadow-lg'
@@ -112,6 +122,12 @@ export default function Home() {
       {activeView === 'multisig' && (
         <div className="max-w-4xl mx-auto">
           <MultisigPaymentManager />
+        </div>
+      )}
+
+      {activeView === 'custom-contract' && (
+        <div className="max-w-6xl mx-auto">
+          <CustomContractPayment />
         </div>
       )}
 
