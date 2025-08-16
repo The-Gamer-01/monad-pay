@@ -2,17 +2,35 @@
 
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
+import WalletConnectDeepLink from './WalletConnectDeepLink'
 
 interface QRCodeDisplayProps {
   link: string
 }
 
+interface DeepLinkCollection {
+  walletConnect: string
+  monadPay: string
+  metamask: string
+  rainbow: string
+  rabby: string
+  coinbase: string
+  trustWallet: string
+  fallback: string
+  nfc: string
+  qrCode?: string
+}
+
 export default function QRCodeDisplay({ link }: QRCodeDisplayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [copied, setCopied] = useState(false)
+  const [linkData, setLinkData] = useState<any>(null)
+  const [showWalletOptions, setShowWalletOptions] = useState(false)
+  const [useWalletConnect, setUseWalletConnect] = useState(true)
+  const [deepLinks, setDeepLinks] = useState<DeepLinkCollection | null>(null)
 
   useEffect(() => {
-    if (link && canvasRef.current) {
+    if (link && canvasRef.current && !useWalletConnect) {
       QRCode.toCanvas(canvasRef.current, link, {
         width: 256,
         margin: 2,
@@ -22,7 +40,25 @@ export default function QRCodeDisplay({ link }: QRCodeDisplayProps) {
         }
       })
     }
-  }, [link])
+    
+    // 解析链接参数用于 WalletConnect 组件
+    if (link) {
+      try {
+        const url = new URL(link)
+        const params = url.searchParams
+        setLinkData({
+          to: params.get('to'),
+          amount: params.get('amount'),
+          token: params.get('token'),
+          chainId: params.get('chainId'),
+          message: params.get('message'),
+          label: params.get('label')
+        })
+      } catch (error) {
+        console.error('Failed to parse link:', error)
+      }
+    }
+  }, [link, useWalletConnect])
 
   const copyToClipboard = async () => {
     if (link) {
@@ -116,6 +152,10 @@ export default function QRCodeDisplay({ link }: QRCodeDisplayProps) {
     }
   }
 
+  const handleDeepLinksGenerated = (links: DeepLinkCollection) => {
+    setDeepLinks(links)
+  }
+
   if (!link) {
     return (
       <div className="text-center py-8 sm:py-12">
@@ -131,86 +171,132 @@ export default function QRCodeDisplay({ link }: QRCodeDisplayProps) {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* QR Code - 移动端优化 */}
-      <div className="text-center">
-        <div className="inline-block p-3 sm:p-4 bg-white rounded-lg shadow-sm border">
-          <canvas ref={canvasRef} className="max-w-full h-auto" />
-        </div>
-      </div>
-
-      {/* Link Display - 移动端优化 */}
-      <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          生成的链接
-        </label>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-          <input
-            type="text"
-            value={link}
-            readOnly
-            className="flex-1 px-3 py-3 sm:py-2 bg-white border border-gray-300 rounded-lg text-sm font-mono"
-          />
-          <button
-            onClick={copyToClipboard}
-            className={`px-4 py-3 sm:py-2 rounded-lg text-sm font-medium transition-colors touch-manipulation ${
-              copied
-                ? 'bg-green-100 text-green-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {copied ? '已复制!' : '复制'}
-          </button>
-        </div>
-      </div>
-
-      {/* Action Buttons - 移动端优化 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+      {/* 模式切换 */}
+      <div className="flex items-center justify-center space-x-4 p-3 bg-gray-50 rounded-lg">
         <button
-          onClick={openInWallet}
-          className="bg-blue-600 text-white py-4 sm:py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors font-medium text-base sm:text-sm touch-manipulation"
+          onClick={() => setUseWalletConnect(true)}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            useWalletConnect
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-100'
+          }`}
         >
-          📱 在钱包中打开
+          🔗 WalletConnect 深度链接
         </button>
         <button
-          onClick={copyToClipboard}
-          className="bg-gray-100 text-gray-700 py-4 sm:py-3 px-4 rounded-lg hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors font-medium text-base sm:text-sm touch-manipulation"
+          onClick={() => setUseWalletConnect(false)}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            !useWalletConnect
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-100'
+          }`}
         >
-          🔗 分享链接
+          📱 传统二维码
         </button>
       </div>
 
-      {/* Link Analysis - 移动端优化 */}
-      <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
-        <h3 className="font-medium text-blue-900 mb-2 text-sm sm:text-base">链接解析</h3>
-        <div className="space-y-1 text-xs sm:text-sm">
-          {(() => {
-            try {
-              const url = new URL(link)
-              const params = url.searchParams
-              return (
-                <>
-                  <div><span className="text-blue-700 font-medium">协议:</span> {url.protocol}</div>
-                  <div><span className="text-blue-700 font-medium">操作:</span> {url.pathname.replace('/', '')}</div>
-                  <div><span className="text-blue-700 font-medium">收款地址:</span> {params.get('to')}</div>
-                  <div><span className="text-blue-700 font-medium">金额:</span> {params.get('amount')} {params.get('token')}</div>
-                  {params.get('label') && (
-                    <div><span className="text-blue-700 font-medium">标签:</span> {params.get('label')}</div>
-                  )}
-                  {params.get('message') && (
-                    <div><span className="text-blue-700 font-medium">消息:</span> {params.get('message')}</div>
-                  )}
-                  {params.get('expires') && (
-                    <div><span className="text-blue-700 font-medium">过期时间:</span> {new Date(Number(params.get('expires')) * 1000).toLocaleString()}</div>
-                  )}
-                </>
-              )
-            } catch (e) {
-              return <div className="text-red-600">链接格式错误</div>
-            }
-          })()
-          }
+      {/* WalletConnect 深度链接模式 */}
+      {useWalletConnect && linkData?.to && linkData?.amount ? (
+        <WalletConnectDeepLink
+          to={linkData.to}
+          amount={linkData.amount}
+          token={linkData.token || 'MON'}
+          chainId={linkData.chainId}
+          message={linkData.message}
+          label={linkData.label}
+          onLinkGenerated={handleDeepLinksGenerated}
+        />
+      ) : useWalletConnect ? (
+        <div className="text-center py-8">
+          <p className="text-gray-500">解析链接参数中...</p>
         </div>
-      </div>
+      ) : null}
+
+      {/* 传统二维码模式 */}
+      {!useWalletConnect && (
+        <div>
+          {/* QR Code - 移动端优化 */}
+          <div className="text-center">
+            <div className="inline-block p-3 sm:p-4 bg-white rounded-lg shadow-sm border">
+              <canvas ref={canvasRef} className="max-w-full h-auto" />
+            </div>
+          </div>
+
+          {/* Link Display - 移动端优化 */}
+          <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              生成的链接
+            </label>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
+              <input
+                type="text"
+                value={link}
+                readOnly
+                className="flex-1 px-3 py-3 sm:py-2 bg-white border border-gray-300 rounded-lg text-sm font-mono"
+              />
+              <button
+                onClick={copyToClipboard}
+                className={`px-4 py-3 sm:py-2 rounded-lg text-sm font-medium transition-colors touch-manipulation ${
+                  copied
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {copied ? '已复制!' : '复制'}
+              </button>
+            </div>
+          </div>
+
+          {/* Action Buttons - 移动端优化 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <button
+              onClick={openInWallet}
+              className="bg-blue-600 text-white py-4 sm:py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors font-medium text-base sm:text-sm touch-manipulation"
+            >
+              📱 在钱包中打开
+            </button>
+            <button
+              onClick={copyToClipboard}
+              className="bg-gray-100 text-gray-700 py-4 sm:py-3 px-4 rounded-lg hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors font-medium text-base sm:text-sm touch-manipulation"
+            >
+              🔗 分享链接
+            </button>
+          </div>
+
+          {/* Link Analysis - 移动端优化 */}
+          <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
+            <h3 className="font-medium text-blue-900 mb-2 text-sm sm:text-base">链接解析</h3>
+            <div className="space-y-1 text-xs sm:text-sm">
+              {(() => {
+                try {
+                  const url = new URL(link)
+                  const params = url.searchParams
+                  return (
+                    <>
+                      <div><span className="text-blue-700 font-medium">协议:</span> {url.protocol}</div>
+                      <div><span className="text-blue-700 font-medium">操作:</span> {url.pathname.replace('/', '')}</div>
+                      <div><span className="text-blue-700 font-medium">收款地址:</span> {params.get('to')}</div>
+                      <div><span className="text-blue-700 font-medium">金额:</span> {params.get('amount')} {params.get('token')}</div>
+                      {params.get('label') && (
+                        <div><span className="text-blue-700 font-medium">标签:</span> {params.get('label')}</div>
+                      )}
+                      {params.get('message') && (
+                        <div><span className="text-blue-700 font-medium">消息:</span> {params.get('message')}</div>
+                      )}
+                      {params.get('expires') && (
+                        <div><span className="text-blue-700 font-medium">过期时间:</span> {new Date(Number(params.get('expires')) * 1000).toLocaleString()}</div>
+                      )}
+                    </>
+                  )
+                } catch (e) {
+                  return <div className="text-red-600">链接格式错误</div>
+                }
+              })()
+              }
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

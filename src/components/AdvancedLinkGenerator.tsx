@@ -133,9 +133,43 @@ export default function AdvancedLinkGenerator({ onLinkGenerated }: AdvancedLinkG
         break
     }
 
+    // 生成直接唤起钱包的深度链接
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://monadpay.app'
-    const link = `${baseUrl}/pay?${params.toString()}`
-    onLinkGenerated(link)
+    const webLink = `${baseUrl}/pay?${params.toString()}`
+    
+    // 根据代币类型确定链ID
+    let chainId = '10143' // 默认 Monad 测试网
+    switch (formData.token.toUpperCase()) {
+      case 'MON':
+        chainId = '10143' // Monad 测试网
+        break
+      case 'ETH':
+        chainId = '1' // 以太坊主网
+        break
+      case 'MATIC':
+        chainId = '137' // Polygon
+        break
+      case 'ARB':
+        chainId = '42161' // Arbitrum
+        break
+    }
+    
+    // 生成 MetaMask 深度链接（移动端优先）
+    const amountInWei = (parseFloat(formData.amount) * 1e18).toString()
+    const metamaskLink = `https://metamask.app.link/send/${formData.to}@${chainId}?value=${amountInWei}`
+    
+    // 生成通用深度链接（包含完整支付信息）
+    const universalLink = `https://metamask.app.link/dapp/${baseUrl.replace('https://', '')}/pay?${params.toString()}`
+    
+    // 返回多种链接格式供用户选择
+    const linkData = {
+      web: webLink,
+      metamask: metamaskLink,
+      universal: universalLink,
+      params: Object.fromEntries(params.entries())
+    }
+    
+    onLinkGenerated(JSON.stringify(linkData))
   }
 
   const handleInputChange = (field: string, value: string | string[] | { address: string; percentage: string }[]) => {
