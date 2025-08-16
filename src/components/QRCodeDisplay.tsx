@@ -33,18 +33,20 @@ export default function QRCodeDisplay({ link }: QRCodeDisplayProps) {
     let qrCodeLink = link
     let parsedData: any = null
     
-    // 尝试解析 JSON 格式的链接数据
+    // 处理链接数据
     if (link) {
       try {
         const linkDataObj = JSON.parse(link)
-        // 传统二维码使用 HTTP 链接，WalletConnect 使用深度链接
+        
         if (useWalletConnect && linkDataObj.monadpay) {
-          qrCodeLink = linkDataObj.monadpay // WalletConnect 模式使用 monadpay:// 深度链接
+          // WalletConnect 模式使用 monadpay:// 深度链接
+          qrCodeLink = linkDataObj.monadpay
         } else if (linkDataObj.web) {
-          qrCodeLink = linkDataObj.web // 传统二维码使用 HTTP 链接
+          // 传统二维码模式直接使用 web URL
+          qrCodeLink = linkDataObj.web
         }
         
-        // 从参数中提取数据
+        // 从参数中提取数据用于显示
         if (linkDataObj.params) {
           parsedData = linkDataObj.params
         }
@@ -93,10 +95,11 @@ export default function QRCodeDisplay({ link }: QRCodeDisplayProps) {
         // 根据模式选择复制的链接类型
         try {
           const linkDataObj = JSON.parse(link)
-          // 传统模式复制 HTTP 链接，WalletConnect 模式复制深度链接
           if (useWalletConnect && linkDataObj.monadpay) {
+            // WalletConnect 模式复制深度链接
             copyLink = linkDataObj.monadpay
           } else if (linkDataObj.web) {
+            // 传统模式复制 web URL
             copyLink = linkDataObj.web
           }
         } catch (error) {
