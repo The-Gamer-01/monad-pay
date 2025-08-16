@@ -93,6 +93,9 @@ const DEFAULT_SETTINGS: AnalyticsSettings = {
   autoCleanup: true
 };
 
+// 检查是否在客户端环境
+const isClient = typeof window !== 'undefined';
+
 // 数据管理类
 export class ContractPaymentAnalytics {
   private transactions: ContractTransaction[] = [];
@@ -110,6 +113,10 @@ export class ContractPaymentAnalytics {
 
   // 加载设置
   private loadSettings(): AnalyticsSettings {
+    if (!isClient) {
+      return DEFAULT_SETTINGS;
+    }
+    
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
       return stored ? { ...DEFAULT_SETTINGS, ...JSON.parse(stored) } : DEFAULT_SETTINGS;
@@ -121,11 +128,24 @@ export class ContractPaymentAnalytics {
   // 保存设置
   public updateSettings(newSettings: Partial<AnalyticsSettings>): void {
     this.settings = { ...this.settings, ...newSettings };
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(this.settings));
+    
+    if (isClient) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(this.settings));
+      } catch (error) {
+        console.error('Failed to save settings:', error);
+      }
+    }
   }
 
   // 加载数据
   private loadData(): void {
+    if (!isClient) {
+      this.transactions = [];
+      this.alerts = [];
+      return;
+    }
+    
     try {
       const transactionsData = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
       const alertsData = localStorage.getItem(STORAGE_KEYS.ALERTS);
@@ -141,6 +161,10 @@ export class ContractPaymentAnalytics {
 
   // 保存数据
   private saveData(): void {
+    if (!isClient) {
+      return;
+    }
+    
     try {
       localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(this.transactions));
       localStorage.setItem(STORAGE_KEYS.ALERTS, JSON.stringify(this.alerts));
@@ -438,8 +462,15 @@ export class ContractPaymentAnalytics {
   public clearAllData(): void {
     this.transactions = [];
     this.alerts = [];
-    localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
-    localStorage.removeItem(STORAGE_KEYS.ALERTS);
+    
+    if (isClient) {
+      try {
+        localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
+        localStorage.removeItem(STORAGE_KEYS.ALERTS);
+      } catch (error) {
+        console.error('Failed to clear localStorage:', error);
+      }
+    }
   }
 }
 
