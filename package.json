@@ -10,8 +10,8 @@
     "export": "next build",
     "deploy:static": "npm run build",
     "deploy:vercel": "vercel --prod",
-    "deploy:netlify": "netlify deploy --prod --dir=out",
-    "deploy:surge": "npm run build && surge out",
+    "deploy:netlify": "netlify deploy --prod --dir=dist",
+    "deploy:surge": "npm run build && surge dist",
     "deploy:firebase": "npm run build && firebase deploy"
   },
   "dependencies": {

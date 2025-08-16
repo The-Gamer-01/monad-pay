@@ -4,7 +4,7 @@ const nextConfig = {
   ...(process.env.NODE_ENV === 'production' && process.env.STATIC_EXPORT === 'true' ? {
     output: 'export',
     trailingSlash: true,
-    distDir: 'out',
+    distDir: 'dist',
   } : {}),
   images: {
     unoptimized: true, // 静态导出需要

@@ -477,7 +477,7 @@ const CustomContractPayment: React.FC<CustomContractPaymentProps> = ({ onPayment
       
       // 解析 ABI
       try {
-        const parsed = parseContractABI(template.abi);
+        const parsed = parseContractABI(JSON.stringify(template.abi));
         setParsedABI(parsed.functions);
         
         // 如果只有一个函数，自动选择

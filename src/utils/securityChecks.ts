@@ -278,7 +278,7 @@ export function performComprehensiveSecurityCheck(
 // 辅助函数：检查是否为高风险地址
 function isHighRiskAddress(address: string): boolean {
   // 这里可以添加已知的高风险地址列表
-  const knownHighRiskAddresses = new Set([
+  const knownHighRiskAddresses = new Set<string>([
     // 添加已知的恶意合约地址
   ]);
   
