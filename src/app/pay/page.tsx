@@ -92,22 +92,22 @@ function PayPageContent() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12">
-      <div className="bg-white rounded-xl shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">确认支付</h1>
+    <div className="max-w-2xl mx-auto px-2 sm:px-4 py-4 sm:py-12">
+      <div className="bg-white rounded-xl shadow-lg p-4 sm:p-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 sm:mb-8 text-center">💰 确认支付</h1>
         
         {/* 支付信息 */}
-        <div className="space-y-6 mb-8">
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">支付详情</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600">收款地址:</span>
-                <span className="font-mono text-sm">{paymentData.to}</span>
+        <div className="space-y-4 sm:space-y-6 mb-6 sm:mb-8">
+          <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">支付详情</h2>
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                <span className="text-gray-600 text-sm sm:text-base">收款地址:</span>
+                <span className="font-mono text-xs sm:text-sm break-all">{paymentData.to}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">金额:</span>
-                <span className="font-semibold text-lg">{paymentData.amount} {paymentData.token}</span>
+                <span className="text-gray-600 text-sm sm:text-base">金额:</span>
+                <span className="font-semibold text-base sm:text-lg">{paymentData.amount} {paymentData.token}</span>
               </div>
               {paymentData.label && (
                 <div className="flex justify-between">
@@ -160,13 +160,13 @@ function PayPageContent() {
                 <button
                   onClick={handlePayment}
                   disabled={isPending}
-                  className={`w-full py-4 px-6 rounded-lg font-semibold text-lg transition-colors ${
+                  className={`w-full py-3 sm:py-4 px-4 sm:px-6 rounded-lg font-semibold text-base sm:text-lg transition-colors ${
                     isPending
                       ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:bg-blue-800'
                   }`}
                 >
-                  {isPending ? '处理中...' : `支付 ${paymentData.amount} ${paymentData.token}`}
+                  {isPending ? '处理中...' : `💳 支付 ${paymentData.amount} ${paymentData.token}`}
                 </button>
               )}
               
@@ -185,15 +185,17 @@ function PayPageContent() {
 
 export default function PayPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-12 px-4 sm:px-0">
+      <Suspense fallback={
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">加载中...</p>
+          </div>
         </div>
-      </div>
-    }>
-      <PayPageContent />
-    </Suspense>
+      }>
+        <PayPageContent />
+      </Suspense>
+    </div>
   )
 }

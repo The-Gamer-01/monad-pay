@@ -79,7 +79,7 @@ export default function LinkGenerator({ onLinkGenerated }: LinkGeneratorProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* 收款地址 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -90,15 +90,15 @@ export default function LinkGenerator({ onLinkGenerated }: LinkGeneratorProps) {
           value={formData.to}
           onChange={(e) => handleInputChange('to', e.target.value)}
           placeholder="0x742d35Cc6634C0532925a3b8D4C9db96590c6C87"
-          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+          className={`w-full px-4 py-3 sm:py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm ${
             errors.to ? 'border-red-500' : 'border-gray-300'
           }`}
         />
         {errors.to && <p className="text-red-500 text-sm mt-1">{errors.to}</p>}
       </div>
 
-      {/* 金额和代币 */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* 金额和代币 - 移动端优化 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             金额 *
@@ -110,7 +110,7 @@ export default function LinkGenerator({ onLinkGenerated }: LinkGeneratorProps) {
             placeholder="10"
             step="0.000001"
             min="0"
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+            className={`w-full px-4 py-3 sm:py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm ${
               errors.amount ? 'border-red-500' : 'border-gray-300'
             }`}
           />
@@ -123,7 +123,7 @@ export default function LinkGenerator({ onLinkGenerated }: LinkGeneratorProps) {
           <select
             value={formData.token}
             onChange={(e) => handleInputChange('token', e.target.value)}
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+            className={`w-full px-4 py-3 sm:py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm ${
               errors.token ? 'border-red-500' : 'border-gray-300'
             }`}
           >
@@ -146,7 +146,7 @@ export default function LinkGenerator({ onLinkGenerated }: LinkGeneratorProps) {
           value={formData.label}
           onChange={(e) => handleInputChange('label', e.target.value)}
           placeholder="coffee"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm"
         />
       </div>
 
@@ -160,7 +160,7 @@ export default function LinkGenerator({ onLinkGenerated }: LinkGeneratorProps) {
           onChange={(e) => handleInputChange('message', e.target.value)}
           placeholder="Thanks for the coffee!"
           rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm resize-none"
         />
       </div>
 
@@ -173,14 +173,14 @@ export default function LinkGenerator({ onLinkGenerated }: LinkGeneratorProps) {
           type="datetime-local"
           value={formData.expires}
           onChange={(e) => handleInputChange('expires', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm"
         />
       </div>
 
-      {/* 生成按钮 */}
+      {/* 生成按钮 - 移动端优化 */}
       <button
         onClick={generateLink}
-        className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors font-medium"
+        className="w-full bg-blue-600 text-white py-4 sm:py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors font-medium text-base sm:text-sm touch-manipulation"
       >
         生成支付链接
       </button>

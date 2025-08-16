@@ -118,41 +118,41 @@ export default function QRCodeDisplay({ link }: QRCodeDisplayProps) {
 
   if (!link) {
     return (
-      <div className="text-center py-12">
-        <div className="w-64 h-64 mx-auto bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-          <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="text-center py-8 sm:py-12">
+        <div className="w-48 h-48 sm:w-64 sm:h-64 mx-auto bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+          <svg className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M12 12h-4.01M12 12v4m6-4h.01M12 8h.01M12 8h4.01M12 8H7.99M12 8V4m0 0H7.99M12 4h4.01" />
           </svg>
         </div>
-        <p className="text-gray-500">生成链接后将显示二维码</p>
+        <p className="text-gray-500 text-sm sm:text-base">生成链接后将显示二维码</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* QR Code */}
+    <div className="space-y-4 sm:space-y-6">
+      {/* QR Code - 移动端优化 */}
       <div className="text-center">
-        <div className="inline-block p-4 bg-white rounded-lg shadow-sm border">
+        <div className="inline-block p-3 sm:p-4 bg-white rounded-lg shadow-sm border">
           <canvas ref={canvasRef} className="max-w-full h-auto" />
         </div>
       </div>
 
-      {/* Link Display */}
-      <div className="bg-gray-50 rounded-lg p-4">
+      {/* Link Display - 移动端优化 */}
+      <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           生成的链接
         </label>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
           <input
             type="text"
             value={link}
             readOnly
-            className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-mono"
+            className="flex-1 px-3 py-3 sm:py-2 bg-white border border-gray-300 rounded-lg text-sm font-mono"
           />
           <button
             onClick={copyToClipboard}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-4 py-3 sm:py-2 rounded-lg text-sm font-medium transition-colors touch-manipulation ${
               copied
                 ? 'bg-green-100 text-green-800'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -163,26 +163,26 @@ export default function QRCodeDisplay({ link }: QRCodeDisplayProps) {
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Action Buttons - 移动端优化 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <button
           onClick={openInWallet}
-          className="bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors font-medium"
+          className="bg-blue-600 text-white py-4 sm:py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors font-medium text-base sm:text-sm touch-manipulation"
         >
-          在钱包中打开
+          📱 在钱包中打开
         </button>
         <button
           onClick={copyToClipboard}
-          className="bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors font-medium"
+          className="bg-gray-100 text-gray-700 py-4 sm:py-3 px-4 rounded-lg hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors font-medium text-base sm:text-sm touch-manipulation"
         >
-          分享链接
+          🔗 分享链接
         </button>
       </div>
 
-      {/* Link Analysis */}
-      <div className="bg-blue-50 rounded-lg p-4">
-        <h3 className="font-medium text-blue-900 mb-2">链接解析</h3>
-        <div className="space-y-1 text-sm">
+      {/* Link Analysis - 移动端优化 */}
+      <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
+        <h3 className="font-medium text-blue-900 mb-2 text-sm sm:text-base">链接解析</h3>
+        <div className="space-y-1 text-xs sm:text-sm">
           {(() => {
             try {
               const url = new URL(link)
