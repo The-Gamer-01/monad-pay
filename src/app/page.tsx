@@ -1,13 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import LinkGenerator from '../components/LinkGenerator'
+import AdvancedLinkGenerator from '../components/AdvancedLinkGenerator'
 import QRCodeDisplay from '../components/QRCodeDisplay'
 import WalletConnect from '../components/WalletConnect'
 import NetworkSwitcher from '../components/NetworkSwitcher'
+import EscrowPaymentManager from '../components/EscrowPaymentManager'
+import MultisigPaymentManager from '../components/MultisigPaymentManager'
+import PaymentAnalyticsDashboard from '../components/PaymentAnalyticsDashboard'
 
 export default function Home() {
   const [generatedLink, setGeneratedLink] = useState<string>('')
+  const [activeView, setActiveView] = useState<'generator' | 'escrow' | 'multisig' | 'analytics'>('generator')
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
@@ -38,20 +42,84 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Main Content - 移动端优化 */}
-      <div className="grid lg:grid-cols-2 gap-6 lg:gap-12 items-start">
-        {/* Link Generator */}
-        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">生成支付链接</h2>
-          <LinkGenerator onLinkGenerated={setGeneratedLink} />
-        </div>
-
-        {/* QR Code Display */}
-        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">二维码 & 预览</h2>
-          <QRCodeDisplay link={generatedLink} />
+      {/* Navigation */}
+      <div className="flex justify-center mb-8">
+        <div className="bg-white rounded-2xl p-2 shadow-lg border">
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setActiveView('generator')}
+              className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${activeView === 'generator'
+                ? 'bg-blue-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              支付链接生成
+            </button>
+            <button
+              onClick={() => setActiveView('escrow')}
+              className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${activeView === 'escrow'
+                ? 'bg-blue-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              托管支付管理
+            </button>
+            <button
+              onClick={() => setActiveView('multisig')}
+              className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${activeView === 'multisig'
+                ? 'bg-blue-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              多签支付管理
+            </button>
+            <button
+              onClick={() => setActiveView('analytics')}
+              className={`px-4 py-2 rounded-xl font-medium transition-all text-sm ${activeView === 'analytics'
+                ? 'bg-blue-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              数据分析
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Main Content - 移动端优化 */}
+      {activeView === 'generator' && (
+        <div className="grid lg:grid-cols-2 gap-6 lg:gap-12 items-start">
+          {/* Advanced Link Generator */}
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">可编程支付链接</h2>
+            <AdvancedLinkGenerator onLinkGenerated={setGeneratedLink} />
+          </div>
+
+          {/* QR Code Display */}
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">二维码 & 预览</h2>
+            <QRCodeDisplay link={generatedLink} />
+          </div>
+        </div>
+      )}
+
+      {activeView === 'escrow' && (
+        <div className="max-w-4xl mx-auto">
+          <EscrowPaymentManager />
+        </div>
+      )}
+
+      {activeView === 'multisig' && (
+        <div className="max-w-4xl mx-auto">
+          <MultisigPaymentManager />
+        </div>
+      )}
+
+      {activeView === 'analytics' && (
+        <div className="max-w-6xl mx-auto">
+          <PaymentAnalyticsDashboard />
+        </div>
+      )}
 
       {/* Use Cases - 移动端优化 */}
       <div className="mt-12 sm:mt-20">
