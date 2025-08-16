@@ -30,8 +30,45 @@ export default function QRCodeDisplay({ link }: QRCodeDisplayProps) {
   const [deepLinks, setDeepLinks] = useState<DeepLinkCollection | null>(null)
 
   useEffect(() => {
-    if (link && canvasRef.current && !useWalletConnect) {
-      QRCode.toCanvas(canvasRef.current, link, {
+    let qrCodeLink = link
+    let parsedData = null
+    
+    // 尝试解析 JSON 格式的链接数据
+    if (link) {
+      try {
+        const linkDataObj = JSON.parse(link)
+        if (linkDataObj.monadpay) {
+          qrCodeLink = linkDataObj.monadpay // 优先使用 monadpay:// 深度链接
+        } else if (linkDataObj.web) {
+          qrCodeLink = linkDataObj.web // 回退到 web 链接
+        }
+        
+        // 从参数中提取数据
+        if (linkDataObj.params) {
+          parsedData = linkDataObj.params
+        }
+      } catch (error) {
+        // 如果不是 JSON，尝试作为 URL 解析
+        try {
+          const url = new URL(link)
+          const params = url.searchParams
+          parsedData = {
+            to: params.get('to'),
+            amount: params.get('amount'),
+            token: params.get('token'),
+            chainId: params.get('chainId'),
+            message: params.get('message'),
+            label: params.get('label')
+          }
+        } catch (urlError) {
+          console.error('Failed to parse link as URL:', urlError)
+        }
+      }
+    }
+    
+    // 生成二维码
+    if (qrCodeLink && canvasRef.current && !useWalletConnect) {
+      QRCode.toCanvas(canvasRef.current, qrCodeLink, {
         width: 256,
         margin: 2,
         color: {
@@ -41,29 +78,30 @@ export default function QRCodeDisplay({ link }: QRCodeDisplayProps) {
       })
     }
     
-    // 解析链接参数用于 WalletConnect 组件
-    if (link) {
-      try {
-        const url = new URL(link)
-        const params = url.searchParams
-        setLinkData({
-          to: params.get('to'),
-          amount: params.get('amount'),
-          token: params.get('token'),
-          chainId: params.get('chainId'),
-          message: params.get('message'),
-          label: params.get('label')
-        })
-      } catch (error) {
-        console.error('Failed to parse link:', error)
-      }
+    // 设置解析后的数据
+    if (parsedData) {
+      setLinkData(parsedData)
     }
   }, [link, useWalletConnect])
 
   const copyToClipboard = async () => {
     if (link) {
       try {
-        await navigator.clipboard.writeText(link)
+        let copyLink = link
+        
+        // 如果是 JSON 格式，优先复制 monadpay:// 深度链接
+        try {
+          const linkDataObj = JSON.parse(link)
+          if (linkDataObj.monadpay) {
+            copyLink = linkDataObj.monadpay
+          } else if (linkDataObj.web) {
+            copyLink = linkDataObj.web
+          }
+        } catch (error) {
+          // 如果不是 JSON，直接使用原链接
+        }
+        
+        await navigator.clipboard.writeText(copyLink)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       } catch (err) {

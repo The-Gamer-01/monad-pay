@@ -161,9 +161,13 @@ export default function AdvancedLinkGenerator({ onLinkGenerated }: AdvancedLinkG
     // 生成通用深度链接（包含完整支付信息）
     const universalLink = `https://metamask.app.link/dapp/${baseUrl.replace('https://', '')}/pay?${params.toString()}`
     
+    // 生成 MonadPay 自定义协议深度链接
+    const monadPayLink = `monadpay://send?${params.toString()}`
+    
     // 返回多种链接格式供用户选择
     const linkData = {
       web: webLink,
+      monadpay: monadPayLink,
       metamask: metamaskLink,
       universal: universalLink,
       params: Object.fromEntries(params.entries())
