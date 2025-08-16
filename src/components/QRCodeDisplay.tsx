@@ -31,7 +31,7 @@ export default function QRCodeDisplay({ link }: QRCodeDisplayProps) {
 
   useEffect(() => {
     let qrCodeLink = link
-    let parsedData = null
+    let parsedData: any = null
     
     // 尝试解析 JSON 格式的链接数据
     if (link) {
