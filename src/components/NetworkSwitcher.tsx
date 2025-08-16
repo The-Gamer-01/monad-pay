@@ -7,7 +7,8 @@ import { mainnet, arbitrum, polygon } from '@reown/appkit/networks'
 const networks = [
   { id: mainnet.id, name: 'Ethereum', symbol: 'ETH' },
   { id: arbitrum.id, name: 'Arbitrum', symbol: 'ETH' },
-  { id: polygon.id, name: 'Polygon', symbol: 'MATIC' }
+  { id: polygon.id, name: 'Polygon', symbol: 'MATIC' },
+  { id: 10143, name: 'Monad Testnet', symbol: 'MON' }
 ]
 
 export default function NetworkSwitcher() {

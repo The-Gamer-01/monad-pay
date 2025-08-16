@@ -15,20 +15,43 @@ const metadata = {
   icons: ['https://avatars.githubusercontent.com/u/37784886']
 }
 
-// 3. Set the networks with proper typing
-const networks: [AppKitNetwork, ...AppKitNetwork[]] = [mainnet, arbitrum, polygon]
+// 3. Define Monad Testnet configuration
+const monadTestnet: AppKitNetwork = {
+  id: 10143,
+  name: 'Monad Testnet',
+  nativeCurrency: {
+    name: 'Monad',
+    symbol: 'MON',
+    decimals: 18
+  },
+  rpcUrls: {
+    default: {
+      http: ['https://testnet-rpc.monad.xyz']
+    }
+  },
+  blockExplorers: {
+    default: {
+      name: 'Monad Explorer',
+      url: 'https://testnet.monadexplorer.com'
+    }
+  },
+  testnet: true
+}
 
-// 4. Create Wagmi Adapter
+// 4. Set the networks with proper typing
+const networks: [AppKitNetwork, ...AppKitNetwork[]] = [mainnet, arbitrum, polygon, monadTestnet]
+
+// 5. Create Wagmi Adapter
 export const wagmiAdapter = new WagmiAdapter({
   networks,
   projectId,
   ssr: true
 })
 
-// 5. Create query client
+// 6. Create query client
 export const queryClient = new QueryClient()
 
-// 6. Create modal
+// 7. Create modal
 export const modal = createAppKit({
   adapters: [wagmiAdapter],
   networks,
