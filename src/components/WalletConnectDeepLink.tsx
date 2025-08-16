@@ -148,7 +148,7 @@ export default function WalletConnectDeepLink({
       walletConnect: `wc:${to}@${chainId}?methods=eth_sendTransaction&events=accountsChanged,chainChanged&amount=${amountInWei}&token=${token}`,
       
       // MonadPay 自定义协议
-      monadPay: `monadpay://pay?${params.toString()}`,
+      monadPay: `monadpay://send?${params.toString()}`,
       
       // MetaMask 深度链接
       metamask: generateWalletDeepLink('metamask', { to, amount, token, chainId, message, label }, paymentUrl),

@@ -442,7 +442,7 @@ export function generateNFCData(params: DeepLinkParams, options: {
   const { to, amount, token, chainId, message, label } = params
   
   const baseUrl = protocol === 'monadpay' 
-    ? 'monadpay://pay'
+    ? 'monadpay://send'
     : 'https://pay.monad.link/pay'
   
   const url = `${baseUrl}?to=${to}&amount=${amount}&token=${token}&chainId=${chainId}${message ? `&message=${encodeURIComponent(message)}` : ''}${label ? `&label=${encodeURIComponent(label)}` : ''}`
