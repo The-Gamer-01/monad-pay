@@ -65,7 +65,9 @@ export default function LinkGenerator({ onLinkGenerated }: LinkGeneratorProps) {
       params.append('expires', expiresTimestamp.toString())
     }
 
-    const link = `monadpay://send?${params.toString()}`
+    // 生成标准的HTTP链接，兼容更多钱包和设备
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://monadpay.app'
+    const link = `${baseUrl}/pay?${params.toString()}`
     onLinkGenerated(link)
   }
 

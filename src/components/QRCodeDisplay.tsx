@@ -38,8 +38,81 @@ export default function QRCodeDisplay({ link }: QRCodeDisplayProps) {
 
   const openInWallet = () => {
     if (link) {
-      // 尝试打开深度链接
-      window.location.href = link
+      try {
+        // 解析链接参数
+        const url = new URL(link)
+        const params = url.searchParams
+        const to = params.get('to')
+        const amount = params.get('amount')
+        const token = params.get('token')
+        // 根据token类型确定链ID
+        let chainId = params.get('chainId')
+        if (!chainId) {
+          // 根据代币类型推断链ID
+          switch (token?.toUpperCase()) {
+            case 'MON':
+              chainId = '10143' // Monad 测试网
+              break
+            case 'ETH':
+              chainId = '1' // 以太坊主网
+              break
+            case 'MATIC':
+              chainId = '137' // Polygon
+              break
+            case 'ARB':
+              chainId = '42161' // Arbitrum
+              break
+            default:
+              chainId = '1' // 默认以太坊主网
+          }
+        }
+        
+        if (to && amount) {
+          // 检测移动设备
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+          
+          if (isMobile) {
+             // 移动端：智能钱包深度链接处理
+             const amountInWei = (parseFloat(amount) * 1e18).toString()
+             
+             // 构建不同钱包的深度链接
+             const walletLinks = {
+               metamask: `https://metamask.app.link/send/${to}@${chainId}?value=${amountInWei}`,
+               trustwallet: `https://link.trustwallet.com/send?coin=60&address=${to}&amount=${amount}`,
+               rainbow: `https://rnbwapp.com/send?address=${to}&amount=${amount}&chainId=${chainId}`,
+               coinbase: `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(window.location.origin + '/pay?' + params.toString())}`,
+               // 通用深度链接作为后备
+               universal: `https://metamask.app.link/dapp/${window.location.origin}/pay?${params.toString()}`
+             }
+             
+             // 优先尝试 MetaMask（最常用）
+             try {
+               window.location.href = walletLinks.metamask
+               
+               // 设置后备方案：如果主要钱包没有响应，显示选择界面
+               setTimeout(() => {
+                 if (confirm('未检测到 MetaMask，是否尝试其他钱包或在浏览器中打开？')) {
+                   window.open(walletLinks.universal, '_blank')
+                 }
+               }, 2000)
+             } catch (error) {
+               console.error('Failed to open primary wallet:', error)
+               window.open(walletLinks.universal, '_blank')
+             }
+           } else {
+            // 桌面端：直接跳转到支付页面
+            const paymentUrl = `${window.location.origin}/pay?${params.toString()}`
+            window.open(paymentUrl, '_blank')
+          }
+        }
+      } catch (error) {
+        console.error('Failed to open wallet:', error)
+        // 降级处理：直接跳转到支付页面
+        const url = new URL(link)
+        const params = url.searchParams
+        const paymentUrl = `${window.location.origin}/pay?${params.toString()}`
+        window.open(paymentUrl, '_blank')
+      }
     }
   }
 
